@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: matching_service_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: matching_db
+      
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/001_create_initial_schema.sql:/docker-entrypoint-initdb.d/001_init.sql
+    networks:
+      - studyconnect
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  matching_service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: matching_service
+    environment:
+      APP_PORT: 8084
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: matching_db
+      DB_POOL_MAX: 10
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      NOTIFICATION_WEBHOOK_URL: ${NOTIFICATION_WEBHOOK_URL:-http://notification-service/internal/events}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - studyconnect
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8084/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: matching_service_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@studyconnect.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - studyconnect
+    profiles:
+      - debug
+
+networks:
+  studyconnect:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

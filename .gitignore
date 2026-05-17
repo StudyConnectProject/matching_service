@@ -1,0 +1,60 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.example
+.md
+.sh
+
+# Go
+bin/
+dist/
+*.o
+*.a
+*.so
+.DS_Store
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.exrc
+
+# Binaries
+/server
+/migrate
+
+# Logs
+*.log
+logs/
+
+# Testing
+coverage.out
+*.test
+
+# Database
+*.db
+*.sql.bak
+
+# Node modules (if applicable)
+node_modules/
+package-lock.json
+
+# Python (if applicable)
+__pycache__/
+.pytest_cache/
+*.pyc
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+.env
+.env
