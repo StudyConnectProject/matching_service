@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: matching-service
+    runtime: go
+    buildCommand: go build -tags netgo -ldflags '-s -w' -o app ./cmd/server/
+    startCommand: ./app
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: 5432
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_SSLMODE
+        value: require
+      - key: JWT_SECRET
+        sync: false

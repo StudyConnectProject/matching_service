@@ -1,27 +1,6 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: matching_service_db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: matching_db
-      
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./migrations/001_create_initial_schema.sql:/docker-entrypoint-initdb.d/001_init.sql
-    networks:
-      - studyconnect
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   matching_service:
     build:
       context: .
@@ -29,20 +8,18 @@ services:
     container_name: matching_service
     environment:
       APP_PORT: 8084
-      DB_HOST: postgres
+      DB_HOST: ep-old-cherry-ap5tf8fm-pooler.c-7.us-east-1.aws.neon.tech
       DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: matching_db
+      DB_USER: neondb_owner
+      DB_PASSWORD: npg_pZdjels9D6CA
+      DB_NAME: neondb
+      DB_SSLMODE: require
       DB_POOL_MAX: 10
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       NOTIFICATION_WEBHOOK_URL: ${NOTIFICATION_WEBHOOK_URL:-http://notification-service/internal/events}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "8084:8084"
-    depends_on:
-      postgres:
-        condition: service_healthy
     networks:
       - studyconnect
     healthcheck:
@@ -61,8 +38,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
-    depends_on:
-      - postgres
+    depends_on: []
     networks:
       - studyconnect
     profiles:
@@ -71,7 +47,3 @@ services:
 networks:
   studyconnect:
     driver: bridge
-
-volumes:
-  postgres_data:
-    driver: local
