@@ -26,14 +26,18 @@ type MatchingService struct {
 }
 
 type MatchRequest struct {
-	ID          uuid.UUID `json:"id"`
-	StudentID   uuid.UUID `json:"student_id"`
-	Subject     string    `json:"subject"`
-	Level       string    `json:"level"`
-	Description string    `json:"description"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID                uuid.UUID `json:"id"`
+	StudentID         uuid.UUID `json:"student_id"`
+	Subject           string    `json:"subject"`
+	Level             string    `json:"level"`
+	Description       string    `json:"description"`
+	Status            string    `json:"status"`
+	PreferredSchedule string    `json:"preferred_schedule,omitempty"`
+	PreferredLanguage string    `json:"preferred_language,omitempty"`
+	Modality          string    `json:"modality,omitempty"`
+	MaxPrice          int       `json:"max_price,omitempty"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type CreateMatchRequestPayload struct {
@@ -281,11 +285,19 @@ func (s *MatchingService) GetMatchRequest(w http.ResponseWriter, r *http.Request
 
 	var request MatchRequest
 	var description sql.NullString
+	var prefSchedule, prefLanguage, modality sql.NullString
+	var maxPrice sql.NullInt64
 	err := s.DB.QueryRow(`
-		SELECT id, student_id, subject, level, description, status, created_at, updated_at
-		FROM match_requests WHERE id = $1
-	`, id).Scan(&request.ID, &request.StudentID, &request.Subject, &request.Level,
-		&description, &request.Status, &request.CreatedAt, &request.UpdatedAt)
+		SELECT mr.id, mr.student_id, mr.subject, mr.level, mr.description, mr.status,
+		       mr.created_at, mr.updated_at,
+		       mp.preferred_schedule, mp.preferred_language, mp.modality, mp.max_price
+		FROM match_requests mr
+		LEFT JOIN match_preferences mp ON mp.request_id = mr.id
+		WHERE mr.id = $1
+	`, id).Scan(
+		&request.ID, &request.StudentID, &request.Subject, &request.Level,
+		&description, &request.Status, &request.CreatedAt, &request.UpdatedAt,
+		&prefSchedule, &prefLanguage, &modality, &maxPrice)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -296,6 +308,12 @@ func (s *MatchingService) GetMatchRequest(w http.ResponseWriter, r *http.Request
 		return
 	}
 	request.Description = description.String
+	request.PreferredSchedule = prefSchedule.String
+	request.PreferredLanguage = prefLanguage.String
+	request.Modality = modality.String
+	if maxPrice.Valid {
+		request.MaxPrice = int(maxPrice.Int64)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -330,6 +348,17 @@ func (s *MatchingService) UpdateMatchRequest(w http.ResponseWriter, r *http.Requ
 		http.Error(w, `{"error":"Match request not found"}`, http.StatusNotFound)
 		return
 	}
+
+	// Upsert preferences
+	_, _ = s.DB.Exec(`
+		INSERT INTO match_preferences (id, request_id, preferred_schedule, preferred_language, modality, max_price)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (request_id) DO UPDATE SET
+			preferred_schedule = EXCLUDED.preferred_schedule,
+			preferred_language = EXCLUDED.preferred_language,
+			modality           = EXCLUDED.modality,
+			max_price          = EXCLUDED.max_price
+	`, uuid.New(), id, payload.PreferredSchedule, payload.PreferredLanguage, payload.Modality, payload.MaxPrice)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
