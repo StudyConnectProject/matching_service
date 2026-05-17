@@ -30,7 +30,6 @@ RUN apk --no-cache add ca-certificates
 
 # Copy from builder
 COPY --from=builder /build/server .
-COPY --from=builder /build/.env.example .
 
 # Create non-root user
 RUN addgroup -g 1000 appuser && \

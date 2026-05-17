@@ -223,20 +223,25 @@ Update the status of a matching request.
 
 #### `POST /api/matching/process`
 
-Trigger asynchronous processing of pending matching requests.
+Run the matching algorithm over every `pending` request. For each request it
+scores all available tutors (by skill relevance, bio and rating) and stores the
+relevant ones as `suggested` match results.
 
-This endpoint starts a background job to find and score tutor candidates for all pending requests.
+> Note: the algorithm also runs automatically when a request is created
+> (`POST /api/matching/request`), so the student sees suggestions immediately.
+> This endpoint is for reprocessing requests that were still pending.
 
 **Request:**
 ```
 POST /api/matching/process
 ```
 
-**Response (202 Accepted):**
+**Response (200 OK):**
 ```json
 {
-  "message": "Processing started",
-  "job_id": "job-123e4567-e89b-12d3-a456-426614174000"
+  "message": "Processing completed",
+  "requests_processed": 4,
+  "matches_created": 11
 }
 ```
 
@@ -354,6 +359,42 @@ POST /api/matching/550e8400-e29b-41d4-a716-446655440111/reject
   "status": "rejected"
 }
 ```
+
+---
+
+#### `POST /api/matching/{id}/offer`
+
+A tutor offers themselves for a student's match request. Creates a match
+result, moves the request to `processing` and logs the action in the history.
+
+**Parameters:**
+- `id` (string, required): Match **request** ID (UUID)
+
+**Request Body:**
+```json
+{
+  "tutor_id": "789e4567-e89b-12d3-a456-426614174999",
+  "score": 80
+}
+```
+
+- `tutor_id` (string, required): ID of the tutor making the offer
+- `score` (number, optional): Compatibility score 0–100 (default: 80)
+
+**Response (201 Created):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440111",
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "tutor_id": "789e4567-e89b-12d3-a456-426614174999",
+  "score": 80,
+  "status": "suggested"
+}
+```
+
+**Error Responses:**
+- `404` — request not found
+- `409` — request is closed, or the tutor already offered for it
 
 ---
 
