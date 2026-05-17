@@ -172,6 +172,45 @@ GET /api/matching/550e8400-e29b-41d4-a716-446655440000
 
 ---
 
+#### `PUT /api/matching/{id}`
+
+Update the editable fields of a matching request.
+
+**Parameters:**
+- `id` (string, required): Matching request ID (UUID)
+
+**Request Body:**
+```json
+{
+  "subject": "Mathematics",
+  "level": "intermediate",
+  "description": "Updated details"
+}
+```
+
+- `subject` (string, required)
+- `level` (string, required): `beginner | intermediate | advanced`
+- `description` (string, optional)
+
+**Response (200 OK):**
+```json
+{
+  "message": "Match request updated",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "subject": "Mathematics",
+  "level": "intermediate"
+}
+```
+
+**Error Response (404 Not Found):**
+```json
+{
+  "error": "Match request not found"
+}
+```
+
+---
+
 #### `DELETE /api/matching/{id}`
 
 Cancel a matching request.
