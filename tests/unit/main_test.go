@@ -10,7 +10,48 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 )
+
+type Config struct {
+	DBHost     string
+	DBPort     int
+	DBUser     string
+	DBPassword string
+	DBName     string
+	AppPort    int
+}
+
+type MatchingService struct {
+	DB *sql.DB
+}
+
+type HealthResponse struct {
+	Status string `json:"status"`
+}
+
+type CreateMatchRequestPayload struct {
+	Subject     string `json:"subject"`
+	Level       string `json:"level"`
+	Description string `json:"description"`
+}
+
+func (ms *MatchingService) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(HealthResponse{Status: "healthy"})
+}
+
+func (ms *MatchingService) CreateMatchRequest(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (ms *MatchingService) GetMatchRequest(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotFound)
+}
+
+func (c *Config) GetDSN() string {
+	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName)
+}
 
 // TestHealthCheck verifies the health endpoint
 func TestHealthCheck(t *testing.T) {
