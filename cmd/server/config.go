@@ -24,7 +24,11 @@ type Config struct {
 func LoadConfig() *Config {
 	godotenv.Load()
 
-	port, _ := strconv.Atoi(os.Getenv("APP_PORT"))
+	// Render injects PORT; fall back to APP_PORT, then default 8084
+	port, _ := strconv.Atoi(os.Getenv("PORT"))
+	if port == 0 {
+		port, _ = strconv.Atoi(os.Getenv("APP_PORT"))
+	}
 	if port == 0 {
 		port = 8084
 	}

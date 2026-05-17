@@ -5,8 +5,6 @@ services:
     buildCommand: go build -tags netgo -ldflags '-s -w' -o app ./cmd/server/
     startCommand: ./app
     envVars:
-      - key: APP_PORT
-        value: 8084
       - key: DB_HOST
         sync: false
       - key: DB_PORT
