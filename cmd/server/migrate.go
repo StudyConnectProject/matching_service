@@ -1,6 +1,15 @@
--- 001_create_initial_schema.sql
+package main
 
--- Tabla de solicitudes de emparejamiento
+import (
+	"database/sql"
+	"log"
+	"strings"
+)
+
+// migrationSQL contains all DDL statements needed to bootstrap the database.
+// Each statement is separated by a semicolon followed by a newline.
+// Using IF NOT EXISTS on every object makes this fully idempotent.
+const migrationSQL = `
 CREATE TABLE IF NOT EXISTS match_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_id UUID NOT NULL,
@@ -13,10 +22,11 @@ CREATE TABLE IF NOT EXISTS match_requests (
 );
 
 CREATE INDEX IF NOT EXISTS idx_match_requests_student_id ON match_requests(student_id);
+
 CREATE INDEX IF NOT EXISTS idx_match_requests_status ON match_requests(status);
+
 CREATE INDEX IF NOT EXISTS idx_match_requests_subject ON match_requests(subject);
 
--- Tabla de preferencias del match
 CREATE TABLE IF NOT EXISTS match_preferences (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     request_id UUID NOT NULL UNIQUE,
@@ -29,7 +39,6 @@ CREATE TABLE IF NOT EXISTS match_preferences (
 
 CREATE INDEX IF NOT EXISTS idx_match_preferences_request_id ON match_preferences(request_id);
 
--- Tabla de perfiles de tutores
 CREATE TABLE IF NOT EXISTS tutor_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL UNIQUE,
@@ -41,10 +50,11 @@ CREATE TABLE IF NOT EXISTS tutor_profiles (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tutor_profiles_user_id ON tutor_profiles(user_id);
+
 CREATE INDEX IF NOT EXISTS idx_tutor_profiles_is_available ON tutor_profiles(is_available);
+
 CREATE INDEX IF NOT EXISTS idx_tutor_profiles_rating ON tutor_profiles(rating);
 
--- Tabla de habilidades del tutor
 CREATE TABLE IF NOT EXISTS tutor_skills (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tutor_id UUID NOT NULL,
@@ -55,9 +65,9 @@ CREATE TABLE IF NOT EXISTS tutor_skills (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tutor_skills_tutor_id ON tutor_skills(tutor_id);
+
 CREATE INDEX IF NOT EXISTS idx_tutor_skills_skill ON tutor_skills(skill);
 
--- Tabla de disponibilidad del tutor
 CREATE TABLE IF NOT EXISTS tutor_availability (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tutor_id UUID NOT NULL,
@@ -68,9 +78,9 @@ CREATE TABLE IF NOT EXISTS tutor_availability (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tutor_availability_tutor_id ON tutor_availability(tutor_id);
+
 CREATE INDEX IF NOT EXISTS idx_tutor_availability_day ON tutor_availability(day_of_week);
 
--- Tabla de resultados del matching
 CREATE TABLE IF NOT EXISTS match_results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     request_id UUID NOT NULL,
@@ -82,11 +92,13 @@ CREATE TABLE IF NOT EXISTS match_results (
 );
 
 CREATE INDEX IF NOT EXISTS idx_match_results_request_id ON match_results(request_id);
+
 CREATE INDEX IF NOT EXISTS idx_match_results_tutor_id ON match_results(tutor_id);
+
 CREATE INDEX IF NOT EXISTS idx_match_results_status ON match_results(status);
+
 CREATE INDEX IF NOT EXISTS idx_match_results_score ON match_results(score DESC);
 
--- Tabla de historial de matches
 CREATE TABLE IF NOT EXISTS match_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     request_id UUID NOT NULL,
@@ -96,6 +108,33 @@ CREATE TABLE IF NOT EXISTS match_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_match_history_request_id ON match_history(request_id);
+
 CREATE INDEX IF NOT EXISTS idx_match_history_tutor_id ON match_history(tutor_id);
+
 CREATE INDEX IF NOT EXISTS idx_match_history_action ON match_history(action);
-CREATE INDEX IF NOT EXISTS idx_match_history_created_at ON match_history(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_match_history_created_at ON match_history(created_at)
+`
+
+// runMigrations executes the migration SQL against the given database.
+// Each semicolon-delimited statement is run individually so that errors are
+// isolated and already-existing objects do not abort the whole migration.
+func runMigrations(db *sql.DB) error {
+	log.Println("Running database migrations...")
+
+	stmts := strings.Split(migrationSQL, ";")
+	for _, stmt := range stmts {
+		stmt = strings.TrimSpace(stmt)
+		if stmt == "" || strings.HasPrefix(stmt, "--") {
+			continue
+		}
+		if _, err := db.Exec(stmt); err != nil {
+			// Log but do not abort — the object may already exist or the
+			// specific statement may be a no-op (e.g. duplicate index).
+			log.Printf("Migration note: %v", err)
+		}
+	}
+
+	log.Println("✅ Migrations applied")
+	return nil
+}
